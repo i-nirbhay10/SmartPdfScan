@@ -19,7 +19,7 @@ export const usePdfExport = (document) => {
 
       // Copy the file to a guaranteed local absolute path
       await RNFS.copyFile(sourcePath, destPath);
-      
+
       let finalPath = destPath;
 
       // Apply Watermark if set
@@ -38,12 +38,12 @@ export const usePdfExport = (document) => {
                   position: Position.bottomRight,
                 },
                 style: {
-                  color: '#FFFFFFB3', // 70% opaque white
-                  fontSize: 80,
+                  color: '#FFFFFF80', // 50% opaque white
+                  fontSize: 40,
                   textBackgroundStyle: {
                     color: '#00000080', // 50% opaque black
-                    paddingX: 30,
-                    paddingY: 20,
+                    paddingX: 40,
+                    paddingY: 30,
                   },
                 },
               },
@@ -64,8 +64,7 @@ export const usePdfExport = (document) => {
     const options = {
       imagePaths: localPaths,
       name: `${document.name.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,
-      maxSize: { width: 595, height: 842 },
-      quality: 1,
+      quality: 1, // Max quality
     };
 
     const pdf = await RNImageToPdf.createPDFbyImages(options);
@@ -91,7 +90,7 @@ export const usePdfExport = (document) => {
     }
     await RNFS.copyFile(pdf.filePath, cachePdfPath);
     console.log('--- PDF COPIED TO CACHE ---', cachePdfPath);
-    
+
     return cachePdfPath;
   };
 

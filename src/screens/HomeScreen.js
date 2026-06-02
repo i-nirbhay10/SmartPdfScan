@@ -1,8 +1,9 @@
-import React from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Animated } from 'react-native';
 import { useAppStore } from '../store';
 import { colors } from '../theme/colors';
 import DocumentScanner from 'react-native-document-scanner-plugin';
+import { launchImageLibrary } from 'react-native-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 
@@ -10,8 +11,22 @@ export const HomeScreen = ({ navigation }) => {
   const { theme, documents, addDocument } = useAppStore();
   const currentColors = colors[theme];
   const insets = useSafeAreaInsets();
+  
+  const [isFabOpen, setIsFabOpen] = useState(false);
+  const [animation] = useState(new Animated.Value(0));
+
+  const toggleFab = () => {
+    const toValue = isFabOpen ? 0 : 1;
+    Animated.spring(animation, {
+      toValue,
+      friction: 5,
+      useNativeDriver: true,
+    }).start();
+    setIsFabOpen(!isFabOpen);
+  };
 
   const scanDocument = async () => {
+    toggleFab();
     try {
       const { scannedImages } = await DocumentScanner.scanDocument();
       if (scannedImages && scannedImages.length > 0) {
@@ -25,6 +40,62 @@ export const HomeScreen = ({ navigation }) => {
     } catch (error) {
       console.error(error);
     }
+  };
+
+  const importFromGallery = async () => {
+    toggleFab();
+    try {
+      const result = await launchImageLibrary({
+        mediaType: 'photo',
+        selectionLimit: 0, // allow multiple
+      });
+      if (result.assets && result.assets.length > 0) {
+        const selectedImages = result.assets.map(asset => asset.uri);
+        addDocument({
+          id: Date.now().toString(),
+          name: `Gallery_${Date.now()}`,
+          pages: selectedImages,
+          date: new Date().toISOString(),
+        });
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const cameraStyle = {
+    transform: [
+      { scale: animation },
+      {
+        translateY: animation.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0, -70],
+        }),
+      },
+    ],
+  };
+
+  const galleryStyle = {
+    transform: [
+      { scale: animation },
+      {
+        translateY: animation.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0, -140],
+        }),
+      },
+    ],
+  };
+
+  const rotation = {
+    transform: [
+      {
+        rotate: animation.interpolate({
+          inputRange: [0, 1],
+          outputRange: ['0deg', '45deg'],
+        }),
+      },
+    ],
   };
 
   return (
@@ -59,11 +130,41 @@ export const HomeScreen = ({ navigation }) => {
           </TouchableOpacity>
         )}
       />
+
+      {isFabOpen && (
+        <TouchableOpacity 
+          style={styles.overlay} 
+          activeOpacity={1} 
+          onPress={toggleFab} 
+        />
+      )}
+
+      <Animated.View style={[styles.fabAction, galleryStyle, { bottom: insets.bottom + 24 }]}>
+        <TouchableOpacity 
+          style={[styles.fabActionBtn, { backgroundColor: currentColors.surface, borderColor: currentColors.border, borderWidth: 1 }]}
+          onPress={importFromGallery}
+        >
+          <Icon name="image" size={24} color={currentColors.primary} />
+        </TouchableOpacity>
+      </Animated.View>
+
+      <Animated.View style={[styles.fabAction, cameraStyle, { bottom: insets.bottom + 24 }]}>
+        <TouchableOpacity 
+          style={[styles.fabActionBtn, { backgroundColor: currentColors.surface, borderColor: currentColors.border, borderWidth: 1 }]}
+          onPress={scanDocument}
+        >
+          <Icon name="camera" size={24} color={currentColors.primary} />
+        </TouchableOpacity>
+      </Animated.View>
+
       <TouchableOpacity 
         style={[styles.fab, { backgroundColor: currentColors.primary, bottom: insets.bottom + 24 }]}
-        onPress={scanDocument}
+        onPress={toggleFab}
+        activeOpacity={0.8}
       >
-        <Icon name="camera" size={28} color="#FFF" />
+        <Animated.View style={rotation}>
+          <Icon name="plus" size={28} color="#FFF" />
+        </Animated.View>
       </TouchableOpacity>
     </View>
   );
@@ -114,7 +215,6 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    bottom: 24,
     right: 24,
     width: 64,
     height: 64,
@@ -126,10 +226,34 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
+    zIndex: 10,
   },
-  fabIcon: {
-    fontSize: 32,
-    color: '#FFF',
-    fontWeight: '300',
+  fabAction: {
+    position: 'absolute',
+    right: 32,
+    width: 48,
+    height: 48,
+    zIndex: 9,
+  },
+  fabActionBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    zIndex: 8,
   },
 });
